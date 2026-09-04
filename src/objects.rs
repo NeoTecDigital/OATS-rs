@@ -118,6 +118,21 @@ impl Object {
         // Don't update timestamp for internal operations
     }
 
+    /// Apply a proposed trait value, superseding any trait of the same name.
+    ///
+    /// This is the writeback primitive: actions propose a [`Trait`] and the host
+    /// calls this to accept it. The applied trait's version is set to one past
+    /// the version it supersedes, so versions stay monotonic across a chain of
+    /// writebacks. Returns the superseded trait, if there was one.
+    pub fn apply_trait(&mut self, mut trait_obj: Trait) -> Option<Trait> {
+        if let Some(existing) = self.traits.get(trait_obj.name()) {
+            trait_obj.version = existing.version.saturating_add(1);
+        }
+        let superseded = self.traits.insert(trait_obj.name().to_string(), trait_obj);
+        self.updated_at = chrono::Utc::now();
+        superseded
+    }
+
     /// Remove a trait from this object
     #[inline]
     pub fn remove_trait(&mut self, trait_name: &str) -> Option<Trait> {
@@ -329,6 +344,36 @@ mod tests {
         assert!(removed.is_some());
         assert_eq!(obj.trait_count(), 0);
         assert!(!obj.has_trait("test_trait"));
+    }
+
+    #[test]
+    fn test_apply_trait_supersedes_and_bumps_version() {
+        let mut obj = Object::new("john_doe", "customer");
+        obj.add_trait(Trait::new("balance", TraitData::Number(500.0)));
+        assert_eq!(obj.get_trait("balance").unwrap().version(), 1);
+
+        let superseded = obj.apply_trait(Trait::new("balance", TraitData::Number(400.01)));
+
+        let superseded = superseded.expect("previous balance returned");
+        assert_eq!(superseded.data().as_number(), Some(500.0));
+
+        let current = obj.get_trait("balance").expect("balance still present");
+        assert_eq!(current.data().as_number(), Some(400.01));
+        assert_eq!(current.version(), 2);
+        assert_eq!(obj.trait_count(), 1);
+
+        obj.apply_trait(Trait::new("balance", TraitData::Number(300.02)));
+        assert_eq!(obj.get_trait("balance").unwrap().version(), 3);
+    }
+
+    #[test]
+    fn test_apply_trait_adds_when_absent() {
+        let mut obj = Object::new("john_doe", "customer");
+
+        assert!(obj
+            .apply_trait(Trait::new("balance", TraitData::Number(500.0)))
+            .is_none());
+        assert_eq!(obj.get_trait("balance").unwrap().version(), 1);
     }
 
     #[test]

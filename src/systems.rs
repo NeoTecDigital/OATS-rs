@@ -1,8 +1,8 @@
-use crate::actions::ActionResult;
+use crate::actions::{ActionResult, TraitUpdate};
 use crate::{OatsError, Object, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -128,6 +128,29 @@ impl SystemStats {
     }
 }
 
+/// Outcome of a writeback pass.
+///
+/// Applying is deliberately a separate step from proposing: actions read traits
+/// and return [`TraitUpdate`]s, and only an explicit call to
+/// [`SystemManager::apply`] writes them to the registry.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApplyReport {
+    /// Number of trait values written to the registry
+    pub traits_applied: usize,
+    /// Number of distinct objects that received at least one trait
+    pub objects_updated: usize,
+    /// Number of failed results whose updates were deliberately not applied
+    pub results_skipped: usize,
+}
+
+impl ApplyReport {
+    /// True when the pass wrote nothing
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.traits_applied == 0
+    }
+}
+
 /// A system manager that coordinates multiple systems
 pub struct SystemManager {
     systems: HashMap<String, Box<dyn System>>,
@@ -211,6 +234,75 @@ impl SystemManager {
     pub async fn reserve_objects(&self, additional: usize) {
         let mut registry = self.object_registry.write().await;
         registry.reserve(additional);
+    }
+
+    /// Apply the trait updates proposed by successful action results.
+    ///
+    /// This is the writeback half of the OATS loop. Actions never mutate; they
+    /// return proposals, and the host decides here whether to accept them.
+    /// Updates carried by failed results are never applied - they are counted in
+    /// [`ApplyReport::results_skipped`] instead.
+    ///
+    /// The pass is all-or-nothing: if any update names an object the registry
+    /// does not hold, nothing is written and
+    /// [`OatsError::ObjectNotFound`] is returned.
+    pub async fn apply(&self, results: &[ActionResult]) -> Result<ApplyReport> {
+        let mut skipped = 0;
+        let mut updates = Vec::new();
+
+        for result in results {
+            if result.is_success() {
+                updates.extend(result.trait_updates.iter().cloned());
+            } else {
+                skipped += 1;
+            }
+        }
+
+        let mut report = self.apply_updates(updates).await?;
+        report.results_skipped = skipped;
+        Ok(report)
+    }
+
+    /// Apply trait updates directly, without going through an [`ActionResult`].
+    ///
+    /// Takes ownership so a host that already holds the proposals can write them
+    /// back without cloning. Same all-or-nothing guarantee as [`Self::apply`].
+    pub async fn apply_updates(
+        &self,
+        updates: impl IntoIterator<Item = TraitUpdate>,
+    ) -> Result<ApplyReport> {
+        let updates: Vec<TraitUpdate> = updates.into_iter().collect();
+        if updates.is_empty() {
+            return Ok(ApplyReport::default());
+        }
+
+        let mut registry = self.object_registry.write().await;
+
+        // Verify every target first so a bad update cannot half-write the batch.
+        for update in &updates {
+            let key = update.target.to_string();
+            if !registry.contains_key(&key) {
+                return Err(OatsError::object_not_found(key));
+            }
+        }
+
+        let traits_applied = updates.len();
+        let mut touched: HashSet<crate::objects::ObjectId> = HashSet::new();
+        for update in updates {
+            let key = update.target.to_string();
+            let target = update.target;
+            let object = registry
+                .get_mut(&key)
+                .expect("target presence verified above");
+            object.apply_trait(update.into_trait());
+            touched.insert(target);
+        }
+
+        Ok(ApplyReport {
+            traits_applied,
+            objects_updated: touched.len(),
+            results_skipped: 0,
+        })
     }
 
     /// Process all objects through all systems

@@ -18,7 +18,7 @@ pub mod traits;
 pub use actions::{Action, ActionContext, ActionResult, TraitUpdate};
 pub use error::OatsError;
 pub use objects::Object;
-pub use systems::{Priority, System, SystemManager};
+pub use systems::{ApplyReport, Priority, System, SystemManager};
 pub use traits::{Trait, TraitData};
 
 /// Result type for OATS operations
