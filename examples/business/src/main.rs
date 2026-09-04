@@ -32,6 +32,10 @@ impl Action for ProcessOrderAction {
         "Processes a customer order"
     }
 
+    fn required_traits(&self) -> Vec<String> {
+        vec!["balance".to_string(), "current_order".to_string()]
+    }
+
     async fn execute(&self, context: ActionContext) -> Result<ActionResult, OatsError> {
         let customer = context
             .get_object("customer")
@@ -97,6 +101,10 @@ impl Action for UpdateInventoryAction {
         "Updates product inventory levels"
     }
 
+    fn required_traits(&self) -> Vec<String> {
+        vec!["stock".to_string()]
+    }
+
     async fn execute(&self, context: ActionContext) -> Result<ActionResult, OatsError> {
         let product = context
             .get_object("product")
@@ -145,6 +153,10 @@ impl Action for ApplyDiscountAction {
 
     fn description(&self) -> &str {
         "Applies a discount to product pricing"
+    }
+
+    fn required_traits(&self) -> Vec<String> {
+        vec!["price".to_string()]
     }
 
     async fn execute(&self, context: ActionContext) -> Result<ActionResult, OatsError> {
@@ -224,7 +236,7 @@ impl System for OrderProcessingSystem {
                             let mut context = ActionContext::new();
                             context.add_object("customer", customer);
 
-                            match order_action.execute(context).await {
+                            match order_action.run(context).await {
                                 Ok(result) => {
                                     results.push(result);
                                     self.stats.actions_executed += 1;
@@ -304,7 +316,7 @@ impl System for InventoryManagementSystem {
                         let mut context = ActionContext::new();
                         context.add_object("product", product);
 
-                        match restock_action.execute(context).await {
+                        match restock_action.run(context).await {
                             Ok(result) => {
                                 results.push(result);
                                 self.stats.actions_executed += 1;
@@ -379,7 +391,7 @@ impl System for PricingSystem {
                             let mut context = ActionContext::new();
                             context.add_object("product", product);
 
-                            match discount_action.execute(context).await {
+                            match discount_action.run(context).await {
                                 Ok(result) => {
                                     results.push(result);
                                     self.stats.actions_executed += 1;

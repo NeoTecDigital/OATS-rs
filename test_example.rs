@@ -27,6 +27,10 @@ impl Action for TestIncrementAction {
         "Test action that increments a trait"
     }
 
+    fn required_traits(&self) -> Vec<String> {
+        vec![self.trait_name.clone()]
+    }
+
     async fn execute(
         &self,
         context: ActionContext,
@@ -99,7 +103,7 @@ impl System for TestHealthSystem {
                 let mut context = ActionContext::new();
                 context.add_object("target", object);
 
-                match health_action.execute(context).await {
+                match health_action.run(context).await {
                     Ok(result) => {
                         results.push(result);
                         self.stats.actions_executed += 1;
@@ -148,7 +152,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut context = ActionContext::new();
     context.add_object("target", player.clone());
 
-    let result = heal_action.execute(context).await?;
+    let result = heal_action.run(context).await?;
     assert!(result.is_success());
     assert_eq!(result.trait_updates.len(), 1);
     println!("   ✅ Action execution works");

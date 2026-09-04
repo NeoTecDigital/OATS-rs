@@ -74,7 +74,7 @@ async fn apply_writes_proposed_traits_back_to_the_registry() {
         trait_name: "balance".to_string(),
         amount: 99.5,
     };
-    let result = action.execute(context).await.expect("action succeeds");
+    let result = action.run(context).await.expect("action succeeds");
 
     // Proposing must not mutate.
     assert_eq!(registered_balance(&manager, &account_id).await, 500.0);
@@ -116,7 +116,7 @@ async fn repeated_apply_passes_keep_moving_the_value() {
             trait_name: "balance".to_string(),
             amount: 100.0,
         };
-        let result = action.execute(context).await.expect("action succeeds");
+        let result = action.run(context).await.expect("action succeeds");
         manager.apply(&[result]).await.expect("apply succeeds");
     }
 

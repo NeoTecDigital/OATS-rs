@@ -27,6 +27,10 @@ impl Action for CombatAction {
         "Deals damage to target"
     }
 
+    fn required_traits(&self) -> Vec<String> {
+        vec!["health".to_string()]
+    }
+
     async fn execute(
         &self,
         context: ActionContext,
@@ -170,7 +174,7 @@ impl System for CombatSystem {
                     let mut context = ActionContext::new();
                     context.add_object("target", char2.clone());
 
-                    match combat_action.execute(context).await {
+                    match combat_action.run(context).await {
                         Ok(result) => {
                             results.push(result);
                             self.stats.actions_executed += 1;
@@ -242,7 +246,7 @@ impl System for MovementSystem {
                 let mut context = ActionContext::new();
                 context.add_object("target", object);
 
-                match movement_action.execute(context).await {
+                match movement_action.run(context).await {
                     Ok(result) => {
                         results.push(result);
                         self.stats.actions_executed += 1;

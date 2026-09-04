@@ -17,6 +17,10 @@ impl Action for HealAction {
         "Restores health"
     }
 
+    fn required_traits(&self) -> Vec<String> {
+        vec!["health".to_string()]
+    }
+
     async fn execute(
         &self,
         context: ActionContext,
@@ -52,6 +56,10 @@ impl Action for DamageAction {
         "Inflicts damage"
     }
 
+    fn required_traits(&self) -> Vec<String> {
+        vec!["health".to_string()]
+    }
+
     async fn execute(
         &self,
         context: ActionContext,
@@ -85,6 +93,10 @@ impl Action for SetPositionAction {
 
     fn description(&self) -> &str {
         "Sets position"
+    }
+
+    fn required_traits(&self) -> Vec<String> {
+        vec!["position".to_string()]
     }
 
     async fn execute(
@@ -145,7 +157,7 @@ impl System for HealthSystem {
                 let mut context = ActionContext::new();
                 context.add_object("target", object);
 
-                match heal_action.execute(context).await {
+                match heal_action.run(context).await {
                     Ok(result) => {
                         results.push(result);
                         self.stats.actions_executed += 1;
@@ -207,9 +219,10 @@ impl System for PositionSystem {
         for object in objects {
             if object.has_trait("position") {
                 let set_position_action = SetPositionAction;
-                let context = ActionContext::new();
+                let mut context = ActionContext::new();
+                context.add_object("target", object);
 
-                match set_position_action.execute(context).await {
+                match set_position_action.run(context).await {
                     Ok(result) => {
                         results.push(result);
                         self.stats.actions_executed += 1;
@@ -288,7 +301,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut context = ActionContext::new();
     context.add_object("target", player.clone());
 
-    let heal_result = heal_action.execute(context).await?;
+    let heal_result = heal_action.run(context).await?;
     println!("   Heal action result: {}", heal_result.is_success());
     if let Some(message) = heal_result.messages.first() {
         println!("   Message: {message}");
