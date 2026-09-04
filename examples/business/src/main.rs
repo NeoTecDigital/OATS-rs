@@ -62,8 +62,8 @@ impl Action for ProcessOrderAction {
         let balance_trait = Trait::new("balance", TraitData::Number(new_balance));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(order_trait);
-        result.add_trait_update(balance_trait);
+        result.add_trait_update(customer.id(), order_trait);
+        result.add_trait_update(customer.id(), balance_trait);
         result.add_message(format!(
             "Processed order {} for ${:.2}. New balance: ${:.2}",
             self.order_id, self.total_amount, new_balance
@@ -111,7 +111,7 @@ impl Action for UpdateInventoryAction {
         let stock_trait = Trait::new("stock", TraitData::Number(new_stock));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(stock_trait);
+        result.add_trait_update(product.id(), stock_trait);
         result.add_message(format!(
             "Updated {} stock: {:.0} -> {:.0}",
             self.product_id, current_stock, new_stock
@@ -162,7 +162,7 @@ impl Action for ApplyDiscountAction {
         let price_trait = Trait::new("price", TraitData::Number(new_price));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(price_trait);
+        result.add_trait_update(product.id(), price_trait);
         result.add_message(format!(
             "Applied {}% discount. Price: ${:.2} -> ${:.2}",
             self.discount_percentage, current_price, new_price

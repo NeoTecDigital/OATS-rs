@@ -48,7 +48,7 @@ impl Action for TestIncrementAction {
         let new_trait = Trait::new(&self.trait_name, TraitData::Number(new_value));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(new_trait);
+        result.add_trait_update(target_object.id(), new_trait);
         result.add_message(format!(
             "Incremented {} from {} to {}",
             self.trait_name, current_value, new_value

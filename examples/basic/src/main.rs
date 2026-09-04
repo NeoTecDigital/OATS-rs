@@ -31,7 +31,7 @@ impl Action for HealAction {
         let health_trait = Trait::new("health", TraitData::Number(new_health));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(health_trait);
+        result.add_trait_update(target.id(), health_trait);
         result.add_message(format!(
             "Incremented health from {current_health} to {new_health}"
         ));
@@ -66,7 +66,7 @@ impl Action for DamageAction {
         let health_trait = Trait::new("health", TraitData::Number(new_health));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(health_trait);
+        result.add_trait_update(target.id(), health_trait);
         result.add_message(format!(
             "Decremented health from {current_health} to {new_health}"
         ));
@@ -89,8 +89,12 @@ impl Action for SetPositionAction {
 
     async fn execute(
         &self,
-        _context: ActionContext,
+        context: ActionContext,
     ) -> Result<ActionResult, oats_framework::OatsError> {
+        let target = context
+            .get_object("target")
+            .ok_or_else(|| oats_framework::OatsError::action_failed("Target object not found"))?;
+
         let mut position_data = HashMap::new();
         position_data.insert("x".to_string(), serde_json::json!(10.0));
         position_data.insert("y".to_string(), serde_json::json!(20.0));
@@ -98,7 +102,7 @@ impl Action for SetPositionAction {
         let position_trait = Trait::new("position", TraitData::Object(position_data));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(position_trait);
+        result.add_trait_update(target.id(), position_trait);
         result.add_message("Set position to Object({})");
         Ok(result)
     }

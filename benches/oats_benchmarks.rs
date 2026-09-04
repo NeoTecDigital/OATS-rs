@@ -43,7 +43,7 @@ impl Action for BenchmarkIncrementAction {
         let new_trait = Trait::new(&self.trait_name, TraitData::Number(new_value));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(new_trait);
+        result.add_trait_update(target.id(), new_trait);
         Ok(result)
     }
 }

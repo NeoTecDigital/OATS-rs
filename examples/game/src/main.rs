@@ -47,7 +47,7 @@ impl Action for CombatAction {
         let new_health_trait = Trait::new("health", TraitData::Number(new_health));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(new_health_trait);
+        result.add_trait_update(target.id(), new_health_trait);
         result.add_message(format!(
             "Dealt {:.1} damage to {}. Health: {:.1} -> {:.1}",
             self.damage,
@@ -100,7 +100,7 @@ impl Action for MovementAction {
         let new_position_trait = Trait::new("position", TraitData::Object(position_data));
 
         let mut result = ActionResult::success();
-        result.add_trait_update(new_position_trait);
+        result.add_trait_update(target.id(), new_position_trait);
         result.add_message(format!(
             "{} moved to position ({:.1}, {:.1})",
             target.name(),

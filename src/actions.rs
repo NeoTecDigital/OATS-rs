@@ -1,3 +1,4 @@
+use crate::objects::ObjectId;
 use crate::{Object, Result, Trait};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -138,13 +139,61 @@ impl Default for ActionContext {
     }
 }
 
+/// A proposed change to one trait on one object.
+///
+/// Actions never mutate. They return `TraitUpdate`s naming the object each new
+/// trait value belongs to, and the host decides whether to apply them - see
+/// [`crate::SystemManager::apply`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TraitUpdate {
+    /// Object this update is proposed against
+    pub target: ObjectId,
+    /// Trait value proposed for that object
+    pub trait_value: Trait,
+}
+
+impl TraitUpdate {
+    /// Propose `trait_value` for the object identified by `target`
+    #[inline]
+    pub fn new(target: ObjectId, trait_value: Trait) -> Self {
+        Self {
+            target,
+            trait_value,
+        }
+    }
+
+    /// Get the object this update is proposed against
+    #[inline]
+    pub fn target(&self) -> ObjectId {
+        self.target
+    }
+
+    /// Get the proposed trait value
+    #[inline]
+    pub fn trait_value(&self) -> &Trait {
+        &self.trait_value
+    }
+
+    /// Get the name of the trait being updated
+    #[inline]
+    pub fn trait_name(&self) -> &str {
+        self.trait_value.name()
+    }
+
+    /// Consume the update and yield the proposed trait value
+    #[inline]
+    pub fn into_trait(self) -> Trait {
+        self.trait_value
+    }
+}
+
 /// Result of an action execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionResult {
     /// Whether the action was successful
     pub success: bool,
-    /// New traits to be applied
-    pub trait_updates: Vec<Trait>,
+    /// Proposed trait updates, each naming the object it applies to
+    pub trait_updates: Vec<TraitUpdate>,
     /// Messages or logs from the action
     pub messages: Vec<String>,
     /// Additional data returned by the action
@@ -188,16 +237,24 @@ impl ActionResult {
         }
     }
 
-    /// Add a trait update to the result
+    /// Propose a trait value for the given object
     #[inline]
-    pub fn add_trait_update(&mut self, trait_obj: Trait) {
-        self.trait_updates.push(trait_obj);
+    pub fn add_trait_update(&mut self, target: ObjectId, trait_obj: Trait) {
+        self.trait_updates.push(TraitUpdate::new(target, trait_obj));
     }
 
     /// Add multiple trait updates efficiently
     #[inline]
-    pub fn add_trait_updates(&mut self, trait_updates: impl IntoIterator<Item = Trait>) {
+    pub fn add_trait_updates(&mut self, trait_updates: impl IntoIterator<Item = TraitUpdate>) {
         self.trait_updates.extend(trait_updates);
+    }
+
+    /// Iterate the updates proposed against a single object
+    #[inline]
+    pub fn updates_for(&self, target: ObjectId) -> impl Iterator<Item = &TraitUpdate> {
+        self.trait_updates
+            .iter()
+            .filter(move |update| update.target == target)
     }
 
     /// Add a message to the result
@@ -324,5 +381,48 @@ mod tests {
         assert!(result.is_success());
         assert_eq!(result.messages.len(), 1);
         assert_eq!(result.data.len(), 1);
+    }
+
+    #[test]
+    fn test_trait_update_names_its_target() {
+        use crate::traits::{Trait, TraitData};
+
+        let customer = Object::new("john_doe", "customer");
+        let product = Object::new("laptop", "product");
+
+        let mut result = ActionResult::success();
+        result.add_trait_update(
+            customer.id(),
+            Trait::new("balance", TraitData::Number(400.0)),
+        );
+        result.add_trait_update(product.id(), Trait::new("stock", TraitData::Number(65.0)));
+
+        assert_eq!(result.trait_update_count(), 2);
+
+        let for_customer: Vec<_> = result.updates_for(customer.id()).collect();
+        assert_eq!(for_customer.len(), 1);
+        assert_eq!(for_customer[0].trait_name(), "balance");
+        assert_eq!(for_customer[0].target(), customer.id());
+
+        let for_product: Vec<_> = result.updates_for(product.id()).collect();
+        assert_eq!(for_product.len(), 1);
+        assert_eq!(for_product[0].trait_name(), "stock");
+
+        assert_eq!(result.updates_for(Object::new("x", "y").id()).count(), 0);
+    }
+
+    #[test]
+    fn test_trait_update_survives_serialization() {
+        use crate::traits::{Trait, TraitData};
+
+        let target = Object::new("john_doe", "customer").id();
+        let mut result = ActionResult::success();
+        result.add_trait_update(target, Trait::new("balance", TraitData::Number(400.0)));
+
+        let json = serde_json::to_string(&result).expect("serialize");
+        let restored: ActionResult = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(restored.trait_updates[0].target(), target);
+        assert_eq!(restored.trait_updates[0].trait_name(), "balance");
     }
 }
