@@ -108,8 +108,17 @@ use oats_framework::{Trait, TraitData};
 
 // Create traits with different data types
 let string_trait = Trait::new("name", TraitData::String("Hero".to_string()));
-let number_trait = Trait::new("level", TraitData::Number(5.0));
+let level_trait = Trait::new("level", TraitData::Integer(5));
 let bool_trait = Trait::new("active", TraitData::Boolean(true));
+
+// Exact types for values that must not drift. `Number(f64)` is an
+// approximate real: use it for measurements, never for money.
+let price_trait = Trait::new("price", TraitData::Decimal(Decimal::new(99999, 2)));
+let signed_trait = Trait::new("signed_at", TraitData::Timestamp(Utc::now()));
+let effective_trait = Trait::new("effective_on", TraitData::Date(today));
+
+// References to other objects keep their type instead of degrading to a string
+let supplier_trait = Trait::new("supplier", TraitData::Ref(supplier.id()));
 
 // Complex structured data
 let mut position_data = HashMap::new();
@@ -142,17 +151,24 @@ impl Action for HealAction {
         let health_trait = Trait::new("health", TraitData::Number(new_health));
         
         let mut result = ActionResult::success();
-        result.add_trait_update(health_trait);
+        // Every update names the object it applies to
+        result.add_trait_update(target.id(), health_trait);
         result.add_message(format!("Healed {} to {:.1} health", target.name(), new_health));
         Ok(result)
     }
+
+    // Declared preconditions are checked by `run` before `execute` is reached
+    fn required_traits(&self) -> Vec<String> { vec!["health".to_string()] }
 }
 
-// Execute the action
+// Run the action. `run` validates preconditions and then calls `execute`;
+// call `execute` directly only if you are checking preconditions yourself.
 let mut context = ActionContext::new();
 context.add_object("target", player.clone());
-let result = heal_action.execute(context).await?;
+let result = heal_action.run(context).await?;
 ```
+
+An action returns proposals. Nothing has changed yet - see **Applying**, below.
 
 ### 🎯 **Systems** - Operational Orchestration
 Resource allocation. Priority management. Cross-domain coordination.
@@ -186,6 +202,28 @@ manager.register_object(player).await;
 // Process all objects through all systems
 let results = manager.process_all(Priority::Normal).await?;
 ```
+
+### 📥 **Applying** - The Writeback Step
+Actions propose; the host decides. Processing changes nothing until you apply.
+
+```rust
+// Inspect, filter or log the proposals first - they are just data
+for result in &results {
+    for update in &result.trait_updates {
+        println!("{} proposes {}", update.target(), update.trait_name());
+    }
+}
+
+// Then accept them into the registry
+let report = manager.apply(&results).await?;
+println!(
+    "{} updates across {} objects, {} refused",
+    report.traits_applied, report.objects_updated, report.results_skipped
+);
+```
+
+Updates carried by failed results are never applied, and a batch naming an
+unregistered object writes nothing at all rather than half of it.
 
 ## 🎮 Examples
 
