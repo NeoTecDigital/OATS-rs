@@ -21,6 +21,11 @@ pub use objects::Object;
 pub use systems::{ApplyReport, Priority, System, SystemManager};
 pub use traits::{Trait, TraitData};
 
+// Re-exported so consumers construct exact values with the same types the
+// crate stores them in.
+pub use chrono::{DateTime, NaiveDate, Utc};
+pub use rust_decimal::Decimal;
+
 /// Result type for OATS operations
 pub type Result<T> = std::result::Result<T, OatsError>;
 

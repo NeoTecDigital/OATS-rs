@@ -1,4 +1,6 @@
 use crate::objects::ObjectId;
+use chrono::{DateTime, NaiveDate, Utc};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -26,8 +28,20 @@ pub struct Trait {
 pub enum TraitData {
     /// Simple string value
     String(String),
-    /// Numeric value
+    /// Approximate real value.
+    ///
+    /// Binary floating point: use it for measurements and ratios. Never use it
+    /// for money or for any quantity that must round-trip exactly - use
+    /// [`TraitData::Decimal`] or [`TraitData::Integer`] instead.
     Number(f64),
+    /// Signed whole number (`<int>`): counts, quantities, identifiers
+    Integer(i64),
+    /// Exact decimal (`<decimal>`): money, rates, anything that must not drift
+    Decimal(Decimal),
+    /// Absolute point in time in UTC (`<timestamp>`)
+    Timestamp(DateTime<Utc>),
+    /// Calendar date with no time and no zone (`<date>`)
+    Date(NaiveDate),
     /// Boolean value
     Boolean(bool),
     /// Complex structured data
@@ -165,9 +179,29 @@ impl TraitData {
         matches!(self, TraitData::String(_))
     }
 
-    /// Check if this trait data is a number
+    /// Check if this trait data is an approximate real
     pub fn is_number(&self) -> bool {
         matches!(self, TraitData::Number(_))
+    }
+
+    /// Check if this trait data is a whole number
+    pub fn is_integer(&self) -> bool {
+        matches!(self, TraitData::Integer(_))
+    }
+
+    /// Check if this trait data is an exact decimal
+    pub fn is_decimal(&self) -> bool {
+        matches!(self, TraitData::Decimal(_))
+    }
+
+    /// Check if this trait data is a timestamp
+    pub fn is_timestamp(&self) -> bool {
+        matches!(self, TraitData::Timestamp(_))
+    }
+
+    /// Check if this trait data is a calendar date
+    pub fn is_date(&self) -> bool {
+        matches!(self, TraitData::Date(_))
     }
 
     /// Check if this trait data is a boolean
@@ -203,10 +237,46 @@ impl TraitData {
         }
     }
 
-    /// Try to get the number value
+    /// Try to get the approximate real value.
+    ///
+    /// Deliberately strict: an [`TraitData::Integer`] or [`TraitData::Decimal`]
+    /// is not silently widened to `f64`, because that is exactly how exact
+    /// values lose their exactness.
     pub fn as_number(&self) -> Option<f64> {
         match self {
             TraitData::Number(n) => Some(*n),
+            _ => None,
+        }
+    }
+
+    /// Try to get the whole number value
+    pub fn as_integer(&self) -> Option<i64> {
+        match self {
+            TraitData::Integer(i) => Some(*i),
+            _ => None,
+        }
+    }
+
+    /// Try to get the exact decimal value
+    pub fn as_decimal(&self) -> Option<Decimal> {
+        match self {
+            TraitData::Decimal(d) => Some(*d),
+            _ => None,
+        }
+    }
+
+    /// Try to get the timestamp value
+    pub fn as_timestamp(&self) -> Option<DateTime<Utc>> {
+        match self {
+            TraitData::Timestamp(t) => Some(*t),
+            _ => None,
+        }
+    }
+
+    /// Try to get the calendar date value
+    pub fn as_date(&self) -> Option<NaiveDate> {
+        match self {
+            TraitData::Date(d) => Some(*d),
             _ => None,
         }
     }
@@ -279,6 +349,79 @@ mod tests {
         assert_eq!(string_data.as_string(), Some(&"hello".to_string()));
         assert_eq!(number_data.as_number(), Some(42.0));
         assert_eq!(bool_data.as_boolean(), Some(true));
+    }
+
+    #[test]
+    fn test_numeric_variants_are_distinct() {
+        let integer = TraitData::Integer(42);
+        let decimal = TraitData::Decimal(Decimal::new(4200, 2));
+        let real = TraitData::Number(42.0);
+
+        assert!(integer.is_integer() && !integer.is_number() && !integer.is_decimal());
+        assert!(decimal.is_decimal() && !decimal.is_number() && !decimal.is_integer());
+        assert!(real.is_number() && !real.is_integer() && !real.is_decimal());
+
+        assert_eq!(integer.as_integer(), Some(42));
+        assert_eq!(decimal.as_decimal(), Some(Decimal::new(4200, 2)));
+        assert_eq!(real.as_number(), Some(42.0));
+
+        // No silent widening: that is how exactness gets lost.
+        assert_eq!(integer.as_number(), None);
+        assert_eq!(decimal.as_number(), None);
+        assert_eq!(real.as_decimal(), None);
+    }
+
+    #[test]
+    fn test_decimal_money_does_not_drift() {
+        let charge = Decimal::new(9999, 2);
+        let mut exact = Decimal::new(50000, 2);
+        let mut approximate = 500.0_f64;
+
+        for _ in 0..3 {
+            exact -= charge;
+            approximate -= 99.99;
+        }
+
+        assert_eq!(exact, Decimal::new(20003, 2));
+        assert_eq!(exact.to_string(), "200.03");
+        assert_ne!(
+            approximate, 200.03,
+            "f64 drifts, which is why money is not f64"
+        );
+    }
+
+    #[test]
+    fn test_temporal_variants_round_trip() {
+        let instant = DateTime::parse_from_rfc3339("2026-08-30T12:34:56Z")
+            .expect("valid timestamp")
+            .with_timezone(&Utc);
+        let day = NaiveDate::from_ymd_opt(2026, 8, 30).expect("valid date");
+
+        let timestamp = Trait::new("signed_at", TraitData::Timestamp(instant));
+        let date = Trait::new("effective_on", TraitData::Date(day));
+
+        let timestamp: Trait =
+            serde_json::from_str(&serde_json::to_string(&timestamp).expect("serialize"))
+                .expect("deserialize");
+        let date: Trait = serde_json::from_str(&serde_json::to_string(&date).expect("serialize"))
+            .expect("deserialize");
+
+        assert_eq!(timestamp.data().as_timestamp(), Some(instant));
+        assert_eq!(date.data().as_date(), Some(day));
+        assert_eq!(timestamp.data().as_date(), None);
+        assert_eq!(date.data().as_timestamp(), None);
+    }
+
+    #[test]
+    fn test_decimal_round_trips() {
+        let amount = Decimal::new(99999, 2);
+        let trait_obj = Trait::new("price", TraitData::Decimal(amount));
+
+        let json = serde_json::to_string(&trait_obj).expect("serialize");
+        let restored: Trait = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(restored.data().as_decimal(), Some(amount));
+        assert_eq!(restored.data().as_decimal().unwrap().to_string(), "999.99");
     }
 
     #[test]
