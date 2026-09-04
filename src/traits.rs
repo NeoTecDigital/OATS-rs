@@ -1,3 +1,4 @@
+use crate::objects::ObjectId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -35,6 +36,12 @@ pub enum TraitData {
     Array(Vec<serde_json::Value>),
     /// Binary data
     Binary(Vec<u8>),
+    /// Reference to another object.
+    ///
+    /// Vocabularies are full of `<kind>` references. Without this variant a
+    /// reference has to degrade to a `String`, which loses the fact that it is
+    /// a reference and cannot be resolved against a registry.
+    Ref(ObjectId),
 }
 
 impl Trait {
@@ -183,6 +190,11 @@ impl TraitData {
         matches!(self, TraitData::Binary(_))
     }
 
+    /// Check if this trait data is a reference to another object
+    pub fn is_ref(&self) -> bool {
+        matches!(self, TraitData::Ref(_))
+    }
+
     /// Try to get the string value
     pub fn as_string(&self) -> Option<&String> {
         match self {
@@ -230,6 +242,14 @@ impl TraitData {
             _ => None,
         }
     }
+
+    /// Try to get the referenced object id
+    pub fn as_ref_id(&self) -> Option<ObjectId> {
+        match self {
+            TraitData::Ref(id) => Some(*id),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -259,6 +279,37 @@ mod tests {
         assert_eq!(string_data.as_string(), Some(&"hello".to_string()));
         assert_eq!(number_data.as_number(), Some(42.0));
         assert_eq!(bool_data.as_boolean(), Some(true));
+    }
+
+    #[test]
+    fn test_trait_data_ref() {
+        use crate::objects::Object;
+
+        let supplier = Object::new("acme_supply", "supplier");
+        let reference = TraitData::Ref(supplier.id());
+
+        assert!(reference.is_ref());
+        assert!(!reference.is_string());
+        assert_eq!(reference.as_ref_id(), Some(supplier.id()));
+        assert_eq!(reference.as_string(), None);
+
+        // A reference must stay a reference, not degrade to a string.
+        let as_string = TraitData::String(supplier.id().to_string());
+        assert!(!as_string.is_ref());
+        assert_eq!(as_string.as_ref_id(), None);
+    }
+
+    #[test]
+    fn test_trait_data_ref_round_trips() {
+        use crate::objects::Object;
+
+        let supplier = Object::new("acme_supply", "supplier");
+        let trait_obj = Trait::new("supplier", TraitData::Ref(supplier.id()));
+
+        let json = serde_json::to_string(&trait_obj).expect("serialize");
+        let restored: Trait = serde_json::from_str(&json).expect("deserialize");
+
+        assert_eq!(restored.data().as_ref_id(), Some(supplier.id()));
     }
 
     #[test]
