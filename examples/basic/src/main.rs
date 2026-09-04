@@ -33,8 +33,7 @@ impl Action for HealAction {
         let mut result = ActionResult::success();
         result.add_trait_update(health_trait);
         result.add_message(format!(
-            "Incremented health from {} to {}",
-            current_health, new_health
+            "Incremented health from {current_health} to {new_health}"
         ));
         Ok(result)
     }
@@ -69,8 +68,7 @@ impl Action for DamageAction {
         let mut result = ActionResult::success();
         result.add_trait_update(health_trait);
         result.add_message(format!(
-            "Decremented health from {} to {}",
-            current_health, new_health
+            "Decremented health from {current_health} to {new_health}"
         ));
         Ok(result)
     }
@@ -151,7 +149,7 @@ impl System for HealthSystem {
                     Err(e) => {
                         self.stats.errors += 1;
                         let error_result =
-                            ActionResult::failure(format!("Health action failed: {}", e));
+                            ActionResult::failure(format!("Health action failed: {e}"));
                         results.push(error_result);
                     }
                 }
@@ -215,7 +213,7 @@ impl System for PositionSystem {
                     Err(e) => {
                         self.stats.errors += 1;
                         let error_result =
-                            ActionResult::failure(format!("Position action failed: {}", e));
+                            ActionResult::failure(format!("Position action failed: {e}"));
                         results.push(error_result);
                     }
                 }
@@ -289,7 +287,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let heal_result = heal_action.execute(context).await?;
     println!("   Heal action result: {}", heal_result.is_success());
     if let Some(message) = heal_result.messages.first() {
-        println!("   Message: {}", message);
+        println!("   Message: {message}");
     }
 
     // Create systems
@@ -332,7 +330,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         );
         for message in &result.messages {
-            println!("     Message: {}", message);
+            println!("     Message: {message}");
         }
     }
 
@@ -341,7 +339,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let stats = manager.get_all_stats();
     for (system_name, stat) in stats {
-        println!("   {}:", system_name);
+        println!("   {system_name}:");
         println!("     Objects processed: {}", stat.objects_processed);
         println!("     Actions executed: {}", stat.actions_executed);
         println!("     Errors: {}", stat.errors);

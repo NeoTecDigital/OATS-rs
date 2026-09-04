@@ -107,7 +107,7 @@ impl System for TestHealthSystem {
                     Err(e) => {
                         self.stats.errors += 1;
                         let error_result =
-                            ActionResult::failure(format!("Health action failed: {}", e));
+                            ActionResult::failure(format!("Health action failed: {e}"));
                         results.push(error_result);
                     }
                 }

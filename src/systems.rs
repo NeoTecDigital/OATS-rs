@@ -163,8 +163,8 @@ impl SystemManager {
     }
 
     /// Get a system by name
-    pub fn get_system(&self, name: &str) -> Option<&Box<dyn System>> {
-        self.systems.get(name)
+    pub fn get_system(&self, name: &str) -> Option<&dyn System> {
+        self.systems.get(name).map(|system| system.as_ref())
     }
 
     /// Get all systems
@@ -240,8 +240,7 @@ impl SystemManager {
                     match system.process(objects.clone(), priority).await {
                         Ok(results) => all_results.extend(results),
                         Err(e) => {
-                            let error_result =
-                                ActionResult::failure(format!("System error: {}", e));
+                            let error_result = ActionResult::failure(format!("System error: {e}"));
                             all_results.push(error_result);
                         }
                     }
@@ -259,9 +258,10 @@ impl SystemManager {
         objects: Vec<Object>,
         priority: Priority,
     ) -> Result<Vec<ActionResult>> {
-        let system = self.systems.get_mut(system_name).ok_or_else(|| {
-            OatsError::system_error(format!("System '{}' not found", system_name))
-        })?;
+        let system = self
+            .systems
+            .get_mut(system_name)
+            .ok_or_else(|| OatsError::system_error(format!("System '{system_name}' not found")))?;
 
         if !system.is_ready() {
             return Err(OatsError::system_error("System is not ready"));
@@ -275,8 +275,7 @@ impl SystemManager {
         for (name, system) in &mut self.systems {
             if let Err(e) = system.initialize().await {
                 return Err(OatsError::system_error(format!(
-                    "Failed to initialize system '{}': {}",
-                    name, e
+                    "Failed to initialize system '{name}': {e}"
                 )));
             }
         }
@@ -288,8 +287,7 @@ impl SystemManager {
         for (name, system) in &mut self.systems {
             if let Err(e) = system.shutdown().await {
                 return Err(OatsError::system_error(format!(
-                    "Failed to shutdown system '{}': {}",
-                    name, e
+                    "Failed to shutdown system '{name}': {e}"
                 )));
             }
         }

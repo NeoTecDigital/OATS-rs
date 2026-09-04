@@ -232,8 +232,7 @@ impl System for OrderProcessingSystem {
                                 Err(e) => {
                                     self.stats.errors += 1;
                                     let error_result = ActionResult::failure(format!(
-                                        "Order processing failed: {}",
-                                        e
+                                        "Order processing failed: {e}"
                                     ));
                                     results.push(error_result);
                                 }
@@ -312,10 +311,8 @@ impl System for InventoryManagementSystem {
                             }
                             Err(e) => {
                                 self.stats.errors += 1;
-                                let error_result = ActionResult::failure(format!(
-                                    "Inventory update failed: {}",
-                                    e
-                                ));
+                                let error_result =
+                                    ActionResult::failure(format!("Inventory update failed: {e}"));
                                 results.push(error_result);
                             }
                         }
@@ -390,8 +387,7 @@ impl System for PricingSystem {
                                 Err(e) => {
                                     self.stats.errors += 1;
                                     let error_result = ActionResult::failure(format!(
-                                        "Pricing update failed: {}",
-                                        e
+                                        "Pricing update failed: {e}"
                                     ));
                                     results.push(error_result);
                                 }
@@ -501,18 +497,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n4. Simulating business operations...");
 
     for day in 1..=3 {
-        println!("\n   --- Business Day {} ---", day);
+        println!("\n   --- Business Day {day} ---");
 
         let results = business_ops.process_all(Priority::Normal).await?;
 
         for result in results {
             if result.is_success() {
                 for message in &result.messages {
-                    println!("     {}", message);
+                    println!("     {message}");
                 }
             } else {
                 for message in &result.messages {
-                    println!("     ❌ {}", message);
+                    println!("     ❌ {message}");
                 }
             }
         }
@@ -549,7 +545,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let stats = business_ops.get_all_stats();
     for (system_name, stat) in stats {
-        println!("   {}:", system_name);
+        println!("   {system_name}:");
         println!("     Objects processed: {}", stat.objects_processed);
         println!("     Actions executed: {}", stat.actions_executed);
         println!("     Errors: {}", stat.errors);

@@ -4,8 +4,6 @@ use oats_framework::{
     Action, ActionContext, ActionResult, OatsError, Object, Priority, System, SystemManager, Trait,
     TraitData,
 };
-use std::collections::HashMap;
-use tokio::runtime::Runtime;
 
 // Simple benchmark action
 struct SimpleBenchmarkAction;
@@ -90,7 +88,7 @@ fn create_simple_objects(count: usize) -> Vec<Object> {
     let mut objects = Vec::with_capacity(count);
 
     for i in 0..count {
-        let mut obj = Object::new(format!("object_{}", i), "test_type");
+        let mut obj = Object::new(format!("object_{i}"), "test_type");
         let health_trait = Trait::new("health", TraitData::Number(100.0));
         obj.add_trait_internal(health_trait);
         objects.push(obj);

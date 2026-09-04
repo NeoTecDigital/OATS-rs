@@ -5,7 +5,6 @@ use oats_framework::{
     TraitData,
 };
 use std::collections::HashMap;
-use tokio::runtime::Runtime;
 
 // Benchmark increment action
 #[derive(Clone)]
@@ -113,7 +112,7 @@ fn create_test_objects(count: usize) -> Vec<Object> {
     let mut objects = Vec::with_capacity(count);
 
     for i in 0..count {
-        let mut obj = Object::new(format!("object_{}", i), "test_type");
+        let mut obj = Object::new(format!("object_{i}"), "test_type");
 
         // Add some traits using bulk operation
         let health_trait = Trait::new("health", TraitData::Number(100.0));
@@ -134,7 +133,7 @@ fn create_complex_objects(count: usize) -> Vec<Object> {
     let mut objects = Vec::with_capacity(count);
 
     for i in 0..count {
-        let mut obj = Object::new(format!("complex_object_{}", i), "complex_type");
+        let mut obj = Object::new(format!("complex_object_{i}"), "complex_type");
 
         // Add many traits to test batch operations
         let traits = vec![
@@ -145,7 +144,7 @@ fn create_complex_objects(count: usize) -> Vec<Object> {
             Trait::new("experience", TraitData::Number(i as f64 * 100.0)),
             Trait::new("gold", TraitData::Number(i as f64 * 10.0)),
             Trait::new("active", TraitData::Boolean(i % 2 == 0)),
-            Trait::new("name", TraitData::String(format!("Player_{}", i))),
+            Trait::new("name", TraitData::String(format!("Player_{i}"))),
         ];
 
         obj.add_traits_bulk(traits);
@@ -199,7 +198,7 @@ fn benchmark_trait_operations(c: &mut Criterion) {
 
             // Add traits individually
             for i in 0..10 {
-                let trait_name = format!("trait_{}", i);
+                let trait_name = format!("trait_{i}");
                 let trait_data = TraitData::Number(i as f64);
                 let trait_obj = Trait::new(&trait_name, trait_data);
                 obj.add_trait(trait_obj);
@@ -216,7 +215,7 @@ fn benchmark_trait_operations(c: &mut Criterion) {
             // Add traits in batch
             let traits: Vec<Trait> = (0..10)
                 .map(|i| {
-                    let trait_name = format!("trait_{}", i);
+                    let trait_name = format!("trait_{i}");
                     let trait_data = TraitData::Number(i as f64);
                     Trait::new(&trait_name, trait_data)
                 })
@@ -234,7 +233,7 @@ fn benchmark_trait_operations(c: &mut Criterion) {
             // Add traits using optimized bulk operation
             let traits: Vec<Trait> = (0..10)
                 .map(|i| {
-                    let trait_name = format!("trait_{}", i);
+                    let trait_name = format!("trait_{i}");
                     let trait_data = TraitData::Number(i as f64);
                     Trait::new(&trait_name, trait_data)
                 })
@@ -448,7 +447,7 @@ fn benchmark_concurrent_operations(c: &mut Criterion) {
     group.bench_function("concurrent_object_registration", |b| {
         b.iter(|| {
             rt.block_on(async {
-                let mut manager = SystemManager::with_capacity(1000);
+                let manager = SystemManager::with_capacity(1000);
                 let objects = create_test_objects(100);
 
                 // Register objects sequentially to avoid cloning issues
@@ -497,8 +496,8 @@ fn benchmark_memory_efficiency(c: &mut Criterion) {
             // Add many traits to test memory efficiency
             let traits: Vec<Trait> = (0..100)
                 .map(|i| {
-                    let trait_name = format!("trait_{}", i);
-                    let trait_data = TraitData::String(format!("value_{}", i));
+                    let trait_name = format!("trait_{i}");
+                    let trait_data = TraitData::String(format!("value_{i}"));
                     Trait::new(&trait_name, trait_data)
                 })
                 .collect();
@@ -515,7 +514,7 @@ fn benchmark_memory_efficiency(c: &mut Criterion) {
             // Create traits in batch
             let traits: Vec<Trait> = (0..50)
                 .map(|i| {
-                    let trait_name = format!("batch_trait_{}", i);
+                    let trait_name = format!("batch_trait_{i}");
                     let trait_data = TraitData::Number(i as f64);
                     Trait::new(&trait_name, trait_data)
                 })
@@ -564,7 +563,7 @@ fn benchmark_stress_tests(c: &mut Criterion) {
                 }
 
                 // Add many systems to test system management
-                for i in 0..50 {
+                for _ in 0..50 {
                     let system = BenchmarkSystem::new();
                     manager.add_system(Box::new(system));
                 }
@@ -603,12 +602,12 @@ fn benchmark_stress_tests(c: &mut Criterion) {
 
             // Create objects with many traits
             for i in 0..100 {
-                let mut obj = Object::new(format!("stress_obj_{}", i), "stress_type");
+                let mut obj = Object::new(format!("stress_obj_{i}"), "stress_type");
 
                 // Add many traits to each object
                 for j in 0..100 {
-                    let trait_name = format!("stress_trait_{}_{}", i, j);
-                    let trait_data = TraitData::String(format!("stress_value_{}_{}", i, j));
+                    let trait_name = format!("stress_trait_{i}_{j}");
+                    let trait_data = TraitData::String(format!("stress_value_{i}_{j}"));
                     let trait_obj = Trait::new(&trait_name, trait_data);
                     obj.add_trait(trait_obj);
                 }
