@@ -1,7 +1,10 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use oats_framework::{Object, Trait, TraitData, Action, ActionContext, ActionResult, System, SystemManager, Priority, OatsError};
-use std::collections::HashMap;
 use async_trait::async_trait;
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use oats_framework::{
+    Action, ActionContext, ActionResult, OatsError, Object, Priority, System, SystemManager, Trait,
+    TraitData,
+};
+use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
 // Simple benchmark action
@@ -47,14 +50,18 @@ impl System for SimpleBenchmarkSystem {
         "Simple benchmark system"
     }
 
-    async fn process(&mut self, objects: Vec<Object>, _priority: Priority) -> Result<Vec<ActionResult>, OatsError> {
+    async fn process(
+        &mut self,
+        objects: Vec<Object>,
+        _priority: Priority,
+    ) -> Result<Vec<ActionResult>, OatsError> {
         let mut results = Vec::with_capacity(objects.len());
         let start_time = std::time::Instant::now();
 
         for _object in objects {
             let action = SimpleBenchmarkAction;
             let context = ActionContext::new();
-            
+
             match action.execute(context).await {
                 Ok(result) => {
                     results.push(result);
@@ -67,7 +74,8 @@ impl System for SimpleBenchmarkSystem {
             self.stats.objects_processed += 1;
         }
 
-        self.stats.update_processing_time(start_time.elapsed().as_millis() as u64);
+        self.stats
+            .update_processing_time(start_time.elapsed().as_millis() as u64);
         self.stats.last_processed = Some(chrono::Utc::now());
 
         Ok(results)
@@ -80,20 +88,20 @@ impl System for SimpleBenchmarkSystem {
 
 fn create_simple_objects(count: usize) -> Vec<Object> {
     let mut objects = Vec::with_capacity(count);
-    
+
     for i in 0..count {
         let mut obj = Object::new(format!("object_{}", i), "test_type");
         let health_trait = Trait::new("health", TraitData::Number(100.0));
         obj.add_trait_internal(health_trait);
         objects.push(obj);
     }
-    
+
     objects
 }
 
 fn simple_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Simple OATS Benchmarks");
-    
+
     // Object creation benchmark
     group.bench_function("object_creation_100", |b| {
         b.iter(|| {
@@ -146,11 +154,11 @@ fn simple_benchmarks(c: &mut Criterion) {
             rt.block_on(async {
                 let mut manager = SystemManager::with_capacity(100);
                 let objects = create_simple_objects(100);
-                
+
                 for obj in objects {
                     manager.register_object(obj).await;
                 }
-                
+
                 manager.add_system(Box::new(SimpleBenchmarkSystem::new()));
                 black_box(manager.process_all(Priority::Normal).await.unwrap());
             });
@@ -161,4 +169,4 @@ fn simple_benchmarks(c: &mut Criterion) {
 }
 
 criterion_group!(benches, simple_benchmarks);
-criterion_main!(benches); 
+criterion_main!(benches);

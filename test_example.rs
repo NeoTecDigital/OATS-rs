@@ -1,4 +1,6 @@
-use oats_framework::{Object, Trait, TraitData, Action, ActionContext, ActionResult, System, SystemManager, Priority};
+use oats_framework::{
+    Action, ActionContext, ActionResult, Object, Priority, System, SystemManager, Trait, TraitData,
+};
 
 // Custom test actions
 struct TestIncrementAction {
@@ -25,7 +27,10 @@ impl Action for TestIncrementAction {
         "Test action that increments a trait"
     }
 
-    async fn execute(&self, context: ActionContext) -> Result<ActionResult, oats_framework::OatsError> {
+    async fn execute(
+        &self,
+        context: ActionContext,
+    ) -> Result<ActionResult, oats_framework::OatsError> {
         let target_object = context
             .get_object("target")
             .ok_or_else(|| oats_framework::OatsError::action_failed("Target object not found"))?;
@@ -80,7 +85,11 @@ impl System for TestHealthSystem {
         &self.description
     }
 
-    async fn process(&mut self, objects: Vec<Object>, _priority: Priority) -> Result<Vec<ActionResult>, oats_framework::OatsError> {
+    async fn process(
+        &mut self,
+        objects: Vec<Object>,
+        _priority: Priority,
+    ) -> Result<Vec<ActionResult>, oats_framework::OatsError> {
         let mut results = Vec::new();
         let start_time = std::time::Instant::now();
 
@@ -97,7 +106,8 @@ impl System for TestHealthSystem {
                     }
                     Err(e) => {
                         self.stats.errors += 1;
-                        let error_result = ActionResult::failure(format!("Health action failed: {}", e));
+                        let error_result =
+                            ActionResult::failure(format!("Health action failed: {}", e));
                         results.push(error_result);
                     }
                 }
@@ -126,7 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut player = Object::new("test_player", "character");
     let health_trait = Trait::new("health", TraitData::Number(100.0));
     player.add_trait(health_trait);
-    
+
     assert_eq!(player.name(), "test_player");
     assert_eq!(player.trait_count(), 1);
     assert!(player.has_trait("health"));
@@ -137,7 +147,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let heal_action = TestIncrementAction::new("health", 25.0);
     let mut context = ActionContext::new();
     context.add_object("target", player.clone());
-    
+
     let result = heal_action.execute(context).await?;
     assert!(result.is_success());
     assert_eq!(result.trait_updates.len(), 1);
@@ -155,14 +165,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("4. Testing system manager...");
     let mut manager = SystemManager::new();
     manager.add_system(Box::new(TestHealthSystem::new()));
-    
+
     let test_object = Object::with_traits(
         "test_obj",
         "test_type",
         vec![Trait::new("health", TraitData::Number(50.0))],
     );
     manager.register_object(test_object).await;
-    
+
     let results = manager.process_all(Priority::Normal).await?;
     assert!(!results.is_empty());
     println!("   ✅ System manager works");
@@ -177,4 +187,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\n🎉 All tests passed! OATS implementation is working correctly.");
     Ok(())
-} 
+}

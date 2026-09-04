@@ -1,10 +1,10 @@
+use crate::actions::ActionResult;
+use crate::{OatsError, Object, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use crate::{Result, Object, OatsError};
-use crate::actions::ActionResult;
 
 /// System identifier
 pub type SystemId = uuid::Uuid;
@@ -44,7 +44,11 @@ pub trait System: Send + Sync {
     }
 
     /// Process objects with the given priority
-    async fn process(&mut self, objects: Vec<Object>, priority: Priority) -> Result<Vec<ActionResult>>;
+    async fn process(
+        &mut self,
+        objects: Vec<Object>,
+        priority: Priority,
+    ) -> Result<Vec<ActionResult>>;
 
     /// Get the priority of this system
     fn priority(&self) -> Priority {
@@ -86,9 +90,10 @@ impl SystemStats {
     pub fn update_processing_time(&mut self, processing_time_ms: u64) {
         self.total_processing_time_ms += processing_time_ms;
         self.peak_processing_time_ms = self.peak_processing_time_ms.max(processing_time_ms);
-        
+
         if self.objects_processed > 0 {
-            self.avg_processing_time_ms = self.total_processing_time_ms as f64 / self.objects_processed as f64;
+            self.avg_processing_time_ms =
+                self.total_processing_time_ms as f64 / self.objects_processed as f64;
         }
     }
 
@@ -216,8 +221,16 @@ impl SystemManager {
         // Sort systems by priority (highest first)
         let mut system_names: Vec<_> = self.systems.keys().cloned().collect();
         system_names.sort_by(|a, b| {
-            let a_priority = self.systems.get(a).map(|s| s.priority()).unwrap_or(Priority::Normal);
-            let b_priority = self.systems.get(b).map(|s| s.priority()).unwrap_or(Priority::Normal);
+            let a_priority = self
+                .systems
+                .get(a)
+                .map(|s| s.priority())
+                .unwrap_or(Priority::Normal);
+            let b_priority = self
+                .systems
+                .get(b)
+                .map(|s| s.priority())
+                .unwrap_or(Priority::Normal);
             b_priority.cmp(&a_priority)
         });
 
@@ -227,7 +240,8 @@ impl SystemManager {
                     match system.process(objects.clone(), priority).await {
                         Ok(results) => all_results.extend(results),
                         Err(e) => {
-                            let error_result = ActionResult::failure(format!("System error: {}", e));
+                            let error_result =
+                                ActionResult::failure(format!("System error: {}", e));
                             all_results.push(error_result);
                         }
                     }
@@ -245,10 +259,9 @@ impl SystemManager {
         objects: Vec<Object>,
         priority: Priority,
     ) -> Result<Vec<ActionResult>> {
-        let system = self
-            .systems
-            .get_mut(system_name)
-            .ok_or_else(|| OatsError::system_error(format!("System '{}' not found", system_name)))?;
+        let system = self.systems.get_mut(system_name).ok_or_else(|| {
+            OatsError::system_error(format!("System '{}' not found", system_name))
+        })?;
 
         if !system.is_ready() {
             return Err(OatsError::system_error("System is not ready"));
@@ -316,4 +329,4 @@ mod tests {
         assert_eq!(stats.actions_executed, 0);
         assert_eq!(stats.errors, 0);
     }
-} 
+}

@@ -1,8 +1,10 @@
-use oats_framework::{Object, Trait, TraitData, Action, ActionContext, ActionResult, System, SystemManager, Priority};
-use std::collections::HashMap;
-use rand::Rng;
+use oats_framework::{
+    Action, ActionContext, ActionResult, Object, Priority, System, SystemManager, Trait, TraitData,
+};
 use rand::rngs::StdRng;
+use rand::Rng;
 use rand::SeedableRng;
+use std::collections::HashMap;
 
 // Custom game actions
 struct CombatAction {
@@ -25,7 +27,10 @@ impl Action for CombatAction {
         "Deals damage to target"
     }
 
-    async fn execute(&self, context: ActionContext) -> Result<ActionResult, oats_framework::OatsError> {
+    async fn execute(
+        &self,
+        context: ActionContext,
+    ) -> Result<ActionResult, oats_framework::OatsError> {
         let target = context
             .get_object("target")
             .ok_or_else(|| oats_framework::OatsError::action_failed("Target not found"))?;
@@ -34,10 +39,9 @@ impl Action for CombatAction {
             .get_trait("health")
             .ok_or_else(|| oats_framework::OatsError::trait_not_found("health"))?;
 
-        let current_health = health_trait
-            .data()
-            .as_number()
-            .ok_or_else(|| oats_framework::OatsError::action_failed("Health trait is not numeric"))?;
+        let current_health = health_trait.data().as_number().ok_or_else(|| {
+            oats_framework::OatsError::action_failed("Health trait is not numeric")
+        })?;
 
         let new_health = (current_health - self.damage).max(0.0);
         let new_health_trait = Trait::new("health", TraitData::Number(new_health));
@@ -46,7 +50,10 @@ impl Action for CombatAction {
         result.add_trait_update(new_health_trait);
         result.add_message(format!(
             "Dealt {:.1} damage to {}. Health: {:.1} -> {:.1}",
-            self.damage, target.name(), current_health, new_health
+            self.damage,
+            target.name(),
+            current_health,
+            new_health
         ));
 
         if new_health <= 0.0 {
@@ -78,7 +85,10 @@ impl Action for MovementAction {
         "Moves character to new position"
     }
 
-    async fn execute(&self, context: ActionContext) -> Result<ActionResult, oats_framework::OatsError> {
+    async fn execute(
+        &self,
+        context: ActionContext,
+    ) -> Result<ActionResult, oats_framework::OatsError> {
         let target = context
             .get_object("target")
             .ok_or_else(|| oats_framework::OatsError::action_failed("Target not found"))?;
@@ -93,7 +103,9 @@ impl Action for MovementAction {
         result.add_trait_update(new_position_trait);
         result.add_message(format!(
             "{} moved to position ({:.1}, {:.1})",
-            target.name(), self.new_x, self.new_y
+            target.name(),
+            self.new_x,
+            self.new_y
         ));
 
         Ok(result)
@@ -127,7 +139,11 @@ impl System for CombatSystem {
         &self.description
     }
 
-    async fn process(&mut self, objects: Vec<Object>, _priority: Priority) -> Result<Vec<ActionResult>, oats_framework::OatsError> {
+    async fn process(
+        &mut self,
+        objects: Vec<Object>,
+        _priority: Priority,
+    ) -> Result<Vec<ActionResult>, oats_framework::OatsError> {
         let mut results = Vec::new();
         let start_time = std::time::Instant::now();
 
@@ -147,7 +163,7 @@ impl System for CombatSystem {
                 let mut rng = StdRng::from_entropy();
                 let distance = rng.gen_range(0.0..10.0); // Random distance for demo
                 let damage = rng.gen_range(5.0..15.0);
-                
+
                 if distance < 3.0 {
                     let combat_action = CombatAction::new(damage);
 
@@ -161,7 +177,8 @@ impl System for CombatSystem {
                         }
                         Err(e) => {
                             self.stats.errors += 1;
-                            let error_result = ActionResult::failure(format!("Combat failed: {}", e));
+                            let error_result =
+                                ActionResult::failure(format!("Combat failed: {}", e));
                             results.push(error_result);
                         }
                     }
@@ -207,7 +224,11 @@ impl System for MovementSystem {
         &self.description
     }
 
-    async fn process(&mut self, objects: Vec<Object>, _priority: Priority) -> Result<Vec<ActionResult>, oats_framework::OatsError> {
+    async fn process(
+        &mut self,
+        objects: Vec<Object>,
+        _priority: Priority,
+    ) -> Result<Vec<ActionResult>, oats_framework::OatsError> {
         let mut results = Vec::new();
         let start_time = std::time::Instant::now();
 
@@ -255,7 +276,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create game characters
     println!("1. Creating game characters...");
-    
+
     let mut player = Object::new("hero", "player");
     let health_trait = Trait::new("health", TraitData::Number(100.0));
     let mut position_data = HashMap::new();
@@ -289,7 +310,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create game systems
     println!("\n2. Creating game systems...");
-    
+
     let combat_system = CombatSystem::new();
     let movement_system = MovementSystem::new();
 
@@ -298,7 +319,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Set up system manager
     println!("\n3. Setting up game world...");
-    
+
     let mut game_world = SystemManager::new();
     game_world.add_system(Box::new(combat_system));
     game_world.add_system(Box::new(movement_system));
@@ -313,12 +334,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Simulate game rounds
     println!("\n4. Simulating game rounds...");
-    
+
     for round in 1..=5 {
         println!("\n   --- Round {} ---", round);
-        
+
         let results = game_world.process_all(Priority::Normal).await?;
-        
+
         for result in results {
             if result.is_success() {
                 for message in &result.messages {
@@ -346,16 +367,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Final statistics
     println!("\n5. Game statistics:");
-    
+
     let stats = game_world.get_all_stats();
     for (system_name, stat) in stats {
         println!("   {}:", system_name);
         println!("     Objects processed: {}", stat.objects_processed);
         println!("     Actions executed: {}", stat.actions_executed);
         println!("     Errors: {}", stat.errors);
-        println!("     Total processing time: {}ms", stat.total_processing_time_ms);
+        println!(
+            "     Total processing time: {}ms",
+            stat.total_processing_time_ms
+        );
     }
 
     println!("\n🎉 Game simulation completed!");
     Ok(())
-} 
+}

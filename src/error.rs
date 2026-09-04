@@ -45,60 +45,78 @@ impl OatsError {
 
     /// Create a new trait not found error
     pub fn trait_not_found(trait_name: impl Into<String>) -> Self {
-        Self::TraitNotFound { trait_name: trait_name.into() }
+        Self::TraitNotFound {
+            trait_name: trait_name.into(),
+        }
     }
 
     /// Create a new action failed error
     pub fn action_failed(message: impl Into<String>) -> Self {
-        Self::ActionFailed { message: message.into() }
+        Self::ActionFailed {
+            message: message.into(),
+        }
     }
 
     /// Create a new system error
     pub fn system_error(message: impl Into<String>) -> Self {
-        Self::SystemError { message: message.into() }
+        Self::SystemError {
+            message: message.into(),
+        }
     }
 
     /// Create a new invalid state error
     pub fn invalid_state(message: impl Into<String>) -> Self {
-        Self::InvalidState { message: message.into() }
+        Self::InvalidState {
+            message: message.into(),
+        }
     }
 
     /// Create a new unknown error
     pub fn unknown(message: impl Into<String>) -> Self {
-        Self::Unknown { message: message.into() }
+        Self::Unknown {
+            message: message.into(),
+        }
     }
 
     /// Create a new validation error
     pub fn validation_error(message: impl Into<String>) -> Self {
-        Self::ValidationError { message: message.into() }
+        Self::ValidationError {
+            message: message.into(),
+        }
     }
 
     /// Create a new resource exhausted error
     pub fn resource_exhausted(message: impl Into<String>) -> Self {
-        Self::ResourceExhausted { message: message.into() }
+        Self::ResourceExhausted {
+            message: message.into(),
+        }
     }
 
     /// Create a new timeout error
     pub fn timeout_error(message: impl Into<String>) -> Self {
-        Self::TimeoutError { message: message.into() }
+        Self::TimeoutError {
+            message: message.into(),
+        }
     }
 
     /// Check if this error is recoverable
     pub fn is_recoverable(&self) -> bool {
-        matches!(self, 
-            OatsError::ObjectNotFound { .. } |
-            OatsError::TraitNotFound { .. } |
-            OatsError::ValidationError { .. } |
-            OatsError::TimeoutError { .. }
+        matches!(
+            self,
+            OatsError::ObjectNotFound { .. }
+                | OatsError::TraitNotFound { .. }
+                | OatsError::ValidationError { .. }
+                | OatsError::TimeoutError { .. }
         )
     }
 
     /// Check if this error is fatal
     pub fn is_fatal(&self) -> bool {
-        matches!(self,
-            OatsError::ResourceExhausted { .. } |
-            OatsError::InvalidState { .. } |
-            OatsError::SystemError { .. }
+        matches!(
+            self,
+            OatsError::ResourceExhausted { .. }
+                | OatsError::InvalidState { .. }
+                | OatsError::SystemError { .. }
         )
     }
-} 
+}

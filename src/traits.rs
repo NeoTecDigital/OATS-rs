@@ -240,7 +240,7 @@ mod tests {
     fn test_trait_creation() {
         let trait_data = TraitData::String("test".to_string());
         let trait_obj = Trait::new("test_trait", trait_data);
-        
+
         assert_eq!(trait_obj.name(), "test_trait");
         assert_eq!(trait_obj.version, 1);
         assert!(trait_obj.data.is_string());
@@ -251,11 +251,11 @@ mod tests {
         let string_data = TraitData::String("hello".to_string());
         let number_data = TraitData::Number(42.0);
         let bool_data = TraitData::Boolean(true);
-        
+
         assert!(string_data.is_string());
         assert!(number_data.is_number());
         assert!(bool_data.is_boolean());
-        
+
         assert_eq!(string_data.as_string(), Some(&"hello".to_string()));
         assert_eq!(number_data.as_number(), Some(42.0));
         assert_eq!(bool_data.as_boolean(), Some(true));
@@ -265,8 +265,8 @@ mod tests {
     fn test_trait_metadata() {
         let mut trait_obj = Trait::new("test", TraitData::String("value".to_string()));
         trait_obj.set_metadata("key", "value");
-        
+
         assert_eq!(trait_obj.get_metadata("key"), Some(&"value".to_string()));
         assert_eq!(trait_obj.get_metadata("nonexistent"), None);
     }
-} 
+}

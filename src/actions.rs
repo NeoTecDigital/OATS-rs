@@ -1,7 +1,7 @@
+use crate::{Object, Result, Trait};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::{Result, Object, Trait};
 
 /// Action identifier
 pub type ActionId = uuid::Uuid;
@@ -53,7 +53,8 @@ impl ActionContext {
     /// Get multiple objects efficiently
     #[inline]
     pub fn get_objects(&self, names: &[&str]) -> HashMap<String, &Object> {
-        names.iter()
+        names
+            .iter()
             .filter_map(|name| self.objects.get(*name).map(|obj| (name.to_string(), obj)))
             .collect()
     }
@@ -174,7 +175,11 @@ impl ActionResult {
     }
 
     /// Create a successful action result with pre-allocated capacity
-    pub fn success_with_capacity(trait_capacity: usize, message_capacity: usize, data_capacity: usize) -> Self {
+    pub fn success_with_capacity(
+        trait_capacity: usize,
+        message_capacity: usize,
+        data_capacity: usize,
+    ) -> Self {
         Self {
             success: true,
             trait_updates: Vec::with_capacity(trait_capacity),
@@ -320,4 +325,4 @@ mod tests {
         assert_eq!(result.messages.len(), 1);
         assert_eq!(result.data.len(), 1);
     }
-} 
+}

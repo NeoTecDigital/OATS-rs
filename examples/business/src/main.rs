@@ -1,6 +1,9 @@
-use oats_framework::{Object, Trait, TraitData, Action, ActionContext, ActionResult, System, SystemManager, Priority, OatsError};
-use std::collections::HashMap;
 use async_trait::async_trait;
+use oats_framework::{
+    Action, ActionContext, ActionResult, OatsError, Object, Priority, System, SystemManager, Trait,
+    TraitData,
+};
+use std::collections::HashMap;
 
 // Custom business actions
 struct ProcessOrderAction {
@@ -36,9 +39,15 @@ impl Action for ProcessOrderAction {
 
         // Create order trait
         let mut order_data = HashMap::new();
-        order_data.insert("order_id".to_string(), serde_json::json!(self.order_id.clone()));
+        order_data.insert(
+            "order_id".to_string(),
+            serde_json::json!(self.order_id.clone()),
+        );
         order_data.insert("items".to_string(), serde_json::json!(self.items.clone()));
-        order_data.insert("total_amount".to_string(), serde_json::json!(self.total_amount));
+        order_data.insert(
+            "total_amount".to_string(),
+            serde_json::json!(self.total_amount),
+        );
         order_data.insert("status".to_string(), serde_json::json!("processing"));
 
         let order_trait = Trait::new("current_order", TraitData::Object(order_data));
@@ -190,7 +199,11 @@ impl System for OrderProcessingSystem {
         &self.description
     }
 
-    async fn process(&mut self, objects: Vec<Object>, _priority: Priority) -> Result<Vec<ActionResult>, OatsError> {
+    async fn process(
+        &mut self,
+        objects: Vec<Object>,
+        _priority: Priority,
+    ) -> Result<Vec<ActionResult>, OatsError> {
         let mut results = Vec::new();
         let start_time = std::time::Instant::now();
 
@@ -218,7 +231,10 @@ impl System for OrderProcessingSystem {
                                 }
                                 Err(e) => {
                                     self.stats.errors += 1;
-                                    let error_result = ActionResult::failure(format!("Order processing failed: {}", e));
+                                    let error_result = ActionResult::failure(format!(
+                                        "Order processing failed: {}",
+                                        e
+                                    ));
                                     results.push(error_result);
                                 }
                             }
@@ -266,7 +282,11 @@ impl System for InventoryManagementSystem {
         &self.description
     }
 
-    async fn process(&mut self, objects: Vec<Object>, _priority: Priority) -> Result<Vec<ActionResult>, OatsError> {
+    async fn process(
+        &mut self,
+        objects: Vec<Object>,
+        _priority: Priority,
+    ) -> Result<Vec<ActionResult>, OatsError> {
         let mut results = Vec::new();
         let start_time = std::time::Instant::now();
 
@@ -292,7 +312,10 @@ impl System for InventoryManagementSystem {
                             }
                             Err(e) => {
                                 self.stats.errors += 1;
-                                let error_result = ActionResult::failure(format!("Inventory update failed: {}", e));
+                                let error_result = ActionResult::failure(format!(
+                                    "Inventory update failed: {}",
+                                    e
+                                ));
                                 results.push(error_result);
                             }
                         }
@@ -339,7 +362,11 @@ impl System for PricingSystem {
         &self.description
     }
 
-    async fn process(&mut self, objects: Vec<Object>, _priority: Priority) -> Result<Vec<ActionResult>, OatsError> {
+    async fn process(
+        &mut self,
+        objects: Vec<Object>,
+        _priority: Priority,
+    ) -> Result<Vec<ActionResult>, OatsError> {
         let mut results = Vec::new();
         let start_time = std::time::Instant::now();
 
@@ -362,7 +389,10 @@ impl System for PricingSystem {
                                 }
                                 Err(e) => {
                                     self.stats.errors += 1;
-                                    let error_result = ActionResult::failure(format!("Pricing update failed: {}", e));
+                                    let error_result = ActionResult::failure(format!(
+                                        "Pricing update failed: {}",
+                                        e
+                                    ));
                                     results.push(error_result);
                                 }
                             }
@@ -391,7 +421,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create business entities
     println!("1. Creating business entities...");
-    
+
     // Customer
     let mut customer = Object::new("john_doe", "customer");
     let balance_trait = Trait::new("balance", TraitData::Number(500.0));
@@ -416,24 +446,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     book.add_trait(book_stock);
     book.add_trait(book_category);
 
-    println!("   Created customer: {} (balance: ${:.2})", customer.name(), 500.0);
-    println!("   Created laptop: {} (price: ${:.2}, stock: {:.0})", laptop.name(), 999.99, 15.0);
-    println!("   Created book: {} (price: ${:.2}, stock: {:.0})", book.name(), 49.99, 45.0);
+    println!(
+        "   Created customer: {} (balance: ${:.2})",
+        customer.name(),
+        500.0
+    );
+    println!(
+        "   Created laptop: {} (price: ${:.2}, stock: {:.0})",
+        laptop.name(),
+        999.99,
+        15.0
+    );
+    println!(
+        "   Created book: {} (price: ${:.2}, stock: {:.0})",
+        book.name(),
+        49.99,
+        45.0
+    );
 
     // Create business systems
     println!("\n2. Creating business systems...");
-    
+
     let order_system = OrderProcessingSystem::new();
     let inventory_system = InventoryManagementSystem::new();
     let pricing_system = PricingSystem::new();
 
-    println!("   Created order processing system: {}", order_system.name());
-    println!("   Created inventory management system: {}", inventory_system.name());
+    println!(
+        "   Created order processing system: {}",
+        order_system.name()
+    );
+    println!(
+        "   Created inventory management system: {}",
+        inventory_system.name()
+    );
     println!("   Created pricing system: {}", pricing_system.name());
 
     // Set up business operations
     println!("\n3. Setting up business operations...");
-    
+
     let mut business_ops = SystemManager::new();
     business_ops.add_system(Box::new(order_system));
     business_ops.add_system(Box::new(inventory_system));
@@ -449,12 +499,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Simulate business operations
     println!("\n4. Simulating business operations...");
-    
+
     for day in 1..=3 {
         println!("\n   --- Business Day {} ---", day);
-        
+
         let results = business_ops.process_all(Priority::Normal).await?;
-        
+
         for result in results {
             if result.is_success() {
                 for message in &result.messages {
@@ -472,13 +522,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         for obj in all_objects {
             match obj.object_type() {
                 "customer" => {
-                    if let Some(balance) = obj.get_trait("balance").and_then(|t| t.data().as_number()) {
+                    if let Some(balance) =
+                        obj.get_trait("balance").and_then(|t| t.data().as_number())
+                    {
                         println!("     {} balance: ${:.2}", obj.name(), balance);
                     }
                 }
                 "product" => {
                     if let Some(stock) = obj.get_trait("stock").and_then(|t| t.data().as_number()) {
-                        if let Some(price) = obj.get_trait("price").and_then(|t| t.data().as_number()) {
+                        if let Some(price) =
+                            obj.get_trait("price").and_then(|t| t.data().as_number())
+                        {
                             println!("     {}: ${:.2} (stock: {:.0})", obj.name(), price, stock);
                         }
                     }
@@ -492,16 +546,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Business analytics
     println!("\n5. Business analytics:");
-    
+
     let stats = business_ops.get_all_stats();
     for (system_name, stat) in stats {
         println!("   {}:", system_name);
         println!("     Objects processed: {}", stat.objects_processed);
         println!("     Actions executed: {}", stat.actions_executed);
         println!("     Errors: {}", stat.errors);
-        println!("     Total processing time: {}ms", stat.total_processing_time_ms);
+        println!(
+            "     Total processing time: {}ms",
+            stat.total_processing_time_ms
+        );
     }
 
     println!("\n💼 Business simulation completed!");
     Ok(())
-} 
+}

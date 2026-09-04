@@ -1,7 +1,7 @@
+use crate::traits::{Trait, TraitId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-use crate::traits::{Trait, TraitId};
 
 /// Object identifier
 pub type ObjectId = Uuid;
@@ -148,7 +148,10 @@ impl Object {
 
     /// Get trait data by name (mutable, zero-copy access)
     #[inline]
-    pub fn get_trait_data_mut(&mut self, trait_name: &str) -> Option<&mut crate::traits::TraitData> {
+    pub fn get_trait_data_mut(
+        &mut self,
+        trait_name: &str,
+    ) -> Option<&mut crate::traits::TraitData> {
         self.traits.get_mut(trait_name).map(|t| t.data_mut())
     }
 
@@ -167,7 +170,9 @@ impl Object {
     /// Check if the object has multiple traits (efficient batch check)
     #[inline]
     pub fn has_traits(&self, trait_names: &[&str]) -> bool {
-        trait_names.iter().all(|name| self.traits.contains_key(*name))
+        trait_names
+            .iter()
+            .all(|name| self.traits.contains_key(*name))
     }
 
     /// Check if the object has any traits
@@ -244,17 +249,21 @@ impl Object {
     }
 
     /// Validate that the object has required traits
-    pub fn validate_required_traits(&self, required_traits: &[&str]) -> Result<(), crate::OatsError> {
+    pub fn validate_required_traits(
+        &self,
+        required_traits: &[&str],
+    ) -> Result<(), crate::OatsError> {
         let missing: Vec<_> = required_traits
             .iter()
             .filter(|trait_name| !self.has_trait(trait_name))
             .map(|s| s.to_string())
             .collect();
-        
+
         if !missing.is_empty() {
-            return Err(crate::OatsError::trait_not_found(
-                format!("Missing required traits: {}", missing.join(", "))
-            ));
+            return Err(crate::OatsError::trait_not_found(format!(
+                "Missing required traits: {}",
+                missing.join(", ")
+            )));
         }
         Ok(())
     }
@@ -287,7 +296,7 @@ mod tests {
     #[test]
     fn test_object_creation() {
         let obj = Object::new("test_object", "test_type");
-        
+
         assert_eq!(obj.name(), "test_object");
         assert_eq!(obj.object_type(), "test_type");
         assert_eq!(obj.trait_count(), 0);
@@ -298,9 +307,9 @@ mod tests {
     fn test_object_with_traits() {
         let trait1 = Trait::new("health", TraitData::Number(100.0));
         let trait2 = Trait::new("position", TraitData::Object(HashMap::new()));
-        
+
         let obj = Object::with_traits("player", "character", vec![trait1, trait2]);
-        
+
         assert_eq!(obj.trait_count(), 2);
         assert!(obj.has_trait("health"));
         assert!(obj.has_trait("position"));
@@ -311,11 +320,11 @@ mod tests {
     fn test_add_remove_trait() {
         let mut obj = Object::new("test", "type");
         let trait_obj = Trait::new("test_trait", TraitData::String("value".to_string()));
-        
+
         obj.add_trait_internal(trait_obj);
         assert_eq!(obj.trait_count(), 1);
         assert!(obj.has_trait("test_trait"));
-        
+
         let removed = obj.remove_trait("test_trait");
         assert!(removed.is_some());
         assert_eq!(obj.trait_count(), 0);
@@ -326,7 +335,7 @@ mod tests {
     fn test_metadata() {
         let mut obj = Object::new("test", "type");
         obj.set_metadata("key", "value");
-        
+
         assert_eq!(obj.get_metadata("key"), Some(&"value".to_string()));
         assert_eq!(obj.get_metadata("nonexistent"), None);
     }
@@ -335,15 +344,15 @@ mod tests {
     fn test_trait_names_and_ids() {
         let trait1 = Trait::new("health", TraitData::Number(100.0));
         let trait2 = Trait::new("position", TraitData::Object(HashMap::new()));
-        
+
         let obj = Object::with_traits("player", "character", vec![trait1, trait2]);
-        
+
         let names = obj.trait_names();
         assert_eq!(names.len(), 2);
         assert!(names.contains(&&"health".to_string()));
         assert!(names.contains(&&"position".to_string()));
-        
+
         let ids = obj.trait_ids();
         assert_eq!(ids.len(), 2);
     }
-} 
+}

@@ -1,25 +1,25 @@
 //! OATS - Objects • Actions • Traits • Systems
-//! 
+//!
 //! Universal architecture pattern for infinite scale across any domain.
-//! 
+//!
 //! This library provides the core abstractions and implementations for the OATS pattern:
 //! - **Objects**: Identity containers that compose traits
 //! - **Actions**: Stateless logic that reads traits and returns updates
 //! - **Traits**: Immutable state containing domain data
 //! - **Systems**: Orchestration that coordinates actions and manages resources
 
-pub mod objects;
 pub mod actions;
-pub mod traits;
-pub mod systems;
 pub mod error;
+pub mod objects;
+pub mod systems;
+pub mod traits;
 
 // Re-export main types for convenience
-pub use objects::Object;
 pub use actions::{Action, ActionContext, ActionResult};
-pub use traits::{Trait, TraitData};
-pub use systems::{System, SystemManager, Priority};
 pub use error::OatsError;
+pub use objects::Object;
+pub use systems::{Priority, System, SystemManager};
+pub use traits::{Trait, TraitData};
 
 /// Result type for OATS operations
 pub type Result<T> = std::result::Result<T, OatsError>;
@@ -167,22 +167,19 @@ mod tests {
     #[test]
     fn test_oats_system_operations() {
         let mut system = OatsSystem::new();
-        
+
         // Test object operations
         let obj = Object::new("test", "type");
         system.add_object(obj);
         assert_eq!(system.object_count(), 1);
-        
+
         // Test bulk object operations
-        let objects = vec![
-            Object::new("obj1", "type"),
-            Object::new("obj2", "type"),
-        ];
+        let objects = vec![Object::new("obj1", "type"), Object::new("obj2", "type")];
         system.add_objects(objects);
         assert_eq!(system.object_count(), 3);
-        
+
         // Test capacity reservation
         system.reserve_objects(100);
         assert!(system.objects.capacity() >= 103);
     }
-} 
+}
