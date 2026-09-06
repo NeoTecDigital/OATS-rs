@@ -49,13 +49,28 @@ impl Action for BenchmarkIncrementAction {
 }
 
 // Benchmark system
+//
+// The name is owned rather than a constant because `SystemManager::add_system` keys the
+// registry by `System::name()`. A constant name means every system added after the first
+// replaces it, so a loop that adds fifty measures one.
 struct BenchmarkSystem {
+    name: String,
     stats: oats_framework::systems::SystemStats,
 }
 
 impl BenchmarkSystem {
     fn new() -> Self {
+        Self::named("benchmark_system")
+    }
+
+    /// A system distinct from every other, for the benchmarks that add more than one.
+    fn numbered(ordinal: usize) -> Self {
+        Self::named(&format!("benchmark_system_{ordinal}"))
+    }
+
+    fn named(name: &str) -> Self {
         Self {
+            name: name.to_string(),
             stats: oats_framework::systems::SystemStats::default(),
         }
     }
@@ -64,7 +79,7 @@ impl BenchmarkSystem {
 #[async_trait]
 impl System for BenchmarkSystem {
     fn name(&self) -> &str {
-        "benchmark_system"
+        &self.name
     }
 
     fn description(&self) -> &str {
@@ -396,10 +411,10 @@ fn benchmark_system_manager(c: &mut Criterion) {
                     manager.register_object(obj).await;
                 }
 
-                // Add multiple systems
-                manager.add_system(Box::new(BenchmarkSystem::new()));
-                manager.add_system(Box::new(BenchmarkSystem::new()));
-                manager.add_system(Box::new(BenchmarkSystem::new()));
+                // Add multiple systems. Distinct names, or the manager holds one.
+                for ordinal in 0..3 {
+                    manager.add_system(Box::new(BenchmarkSystem::numbered(ordinal)));
+                }
 
                 black_box(manager.process_all(Priority::Normal).await.unwrap());
             });
@@ -562,11 +577,13 @@ fn benchmark_stress_tests(c: &mut Criterion) {
                     manager.register_object(obj).await;
                 }
 
-                // Add many systems to test system management
-                for _ in 0..50 {
-                    let system = BenchmarkSystem::new();
-                    manager.add_system(Box::new(system));
+                // Add many systems to test system management. Each needs its own name:
+                // the manager keys by it, so fifty systems sharing one name are one system.
+                for ordinal in 0..50 {
+                    manager.add_system(Box::new(BenchmarkSystem::numbered(ordinal)));
                 }
+                // The benchmark's name is a claim. Hold it to the claim.
+                assert_eq!(manager.system_count(), 50);
 
                 let results = manager.process_all(Priority::Normal).await.unwrap();
                 black_box(results.len());
