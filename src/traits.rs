@@ -1,5 +1,5 @@
 use crate::objects::ObjectId;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -42,6 +42,15 @@ pub enum TraitData {
     Timestamp(DateTime<Utc>),
     /// Calendar date with no time and no zone (`<date>`)
     Date(NaiveDate),
+    /// Elapsed time (`<duration>`): a **signed** nanosecond quantity.
+    ///
+    /// Signed, and `chrono::TimeDelta` rather than `std::time::Duration`, because a
+    /// duration here is as often a difference as a length — a residual between what was
+    /// planned and what happened runs in both directions, and an unsigned type would make
+    /// half of those unrepresentable. It also matches Go's `time.Duration`, which is a
+    /// signed `int64` of nanoseconds; the unsigned type would have meant the two languages
+    /// disagreeing about the domain of the same declared type.
+    Duration(TimeDelta),
     /// Boolean value
     Boolean(bool),
     /// Complex structured data
@@ -204,6 +213,11 @@ impl TraitData {
         matches!(self, TraitData::Date(_))
     }
 
+    /// Check if this trait data is an elapsed time
+    pub fn is_duration(&self) -> bool {
+        matches!(self, TraitData::Duration(_))
+    }
+
     /// Check if this trait data is a boolean
     pub fn is_boolean(&self) -> bool {
         matches!(self, TraitData::Boolean(_))
@@ -281,6 +295,14 @@ impl TraitData {
         }
     }
 
+    /// Try to get the elapsed time
+    pub fn as_duration(&self) -> Option<TimeDelta> {
+        match self {
+            TraitData::Duration(d) => Some(*d),
+            _ => None,
+        }
+    }
+
     /// Try to get the boolean value
     pub fn as_boolean(&self) -> Option<bool> {
         match self {
@@ -349,6 +371,34 @@ mod tests {
         assert_eq!(string_data.as_string(), Some(&"hello".to_string()));
         assert_eq!(number_data.as_number(), Some(42.0));
         assert_eq!(bool_data.as_boolean(), Some(true));
+    }
+
+    #[test]
+    fn duration_is_signed_and_round_trips_exactly() {
+        let ahead = TraitData::Duration(TimeDelta::nanoseconds(1_500_000_000));
+        assert!(ahead.is_duration());
+        assert_eq!(
+            ahead.as_duration().and_then(|d| d.num_nanoseconds()),
+            Some(1_500_000_000)
+        );
+
+        // The reason it is not `std::time::Duration`: a residual runs both ways, and an
+        // unsigned type would make half of every variance unrepresentable.
+        let behind = TraitData::Duration(TimeDelta::nanoseconds(-250));
+        assert_eq!(
+            behind.as_duration().and_then(|d| d.num_nanoseconds()),
+            Some(-250)
+        );
+
+        // Nanosecond precision survives serde, which is what the canonical form encodes.
+        let text = serde_json::to_string(&ahead).unwrap();
+        let back: TraitData = serde_json::from_str(&text).unwrap();
+        assert_eq!(
+            back.as_duration().and_then(|d| d.num_nanoseconds()),
+            Some(1_500_000_000)
+        );
+
+        assert_eq!(ahead.as_integer(), None, "it is not an integer wearing a name");
     }
 
     #[test]
